@@ -89,13 +89,28 @@ def run_nerdy(arr, nerdy_dir, model_path, device_str):
     transform = transforms.Compose([transforms.ToTensor()])
     from PIL import Image
     import numpy as np
-    pil_img = Image.fromarray((arr * 255).astype(np.uint8))
+
+    # The network has one MaxPool2d(stride=2) / ConvTranspose2d(stride=2) pair,
+    # so output spatial size = 2 * floor(input / 2).  For odd-dimension inputs
+    # this is 1 pixel short.  Pad to the next multiple of 2, run inference,
+    # then crop back to the original size.
+    H, W = arr.shape
+    H_pad = H + (H % 2)   # next even number >= H
+    W_pad = W + (W % 2)
+
+    arr_pad = np.zeros((H_pad, W_pad), dtype=arr.dtype)
+    arr_pad[:H, :W] = arr
+
+    pil_img = Image.fromarray((arr_pad * 255).astype(np.uint8))
     tensor = transform(pil_img).unsqueeze(0).to(device)
 
     # Inference
     with torch.no_grad():
         output = model(tensor)
-        prob = torch.sigmoid(output).cpu().squeeze().numpy()
+        prob_pad = torch.sigmoid(output).cpu().squeeze().numpy()
+
+    # Crop back to original size
+    prob = prob_pad[:H, :W]
 
     # Normalise to [0, 1]
     prob_min, prob_max = prob.min(), prob.max()

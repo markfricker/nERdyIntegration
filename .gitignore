@@ -38,3 +38,8 @@ codegen/
 # SimBiology backup files
 *.sbproj.backup
 *.sbproj.bak
+
+# Windows reserved device name (accidentally created by redirecting to nul)
+nul
+__pycache__/
+.claude/
